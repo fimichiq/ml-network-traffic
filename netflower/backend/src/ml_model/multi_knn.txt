@@ -1,0 +1,297 @@
+
+
+files = ["Monday-WorkingHours.pcap_ISCX.csv", #0
+         "Tuesday-WorkingHours.pcap_ISCX.csv", #1
+         "Wednesday-workingHours.pcap_ISCX.csv", #2
+         "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv", #3
+         "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv", #4
+         "Friday-WorkingHours-Morning.pcap_ISCX.csv", #5
+         "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv", #6
+         "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv"] #7
+
+def dataset_file_to_df(index: int, dataset_files: list):
+    read_file = f"{dataset_files[index]}"
+
+    df_read = pd.read_csv(read_file)
+    df_read.replace([np.inf, -np.inf, np.nan], 0, inplace=True)
+
+    return df_read
+
+df0 = dataset_file_to_df(0, files)
+df1 = dataset_file_to_df(1, files)
+df2 = dataset_file_to_df(2, files)
+df3 = dataset_file_to_df(3, files)
+df4 = dataset_file_to_df(4, files)
+df5 = dataset_file_to_df(5, files)
+df6 = dataset_file_to_df(6, files)
+df7 = dataset_file_to_df(7, files)
+
+df1 = df1[df1["Label"] != "BENIGN"]
+df2 = df2[df2["Label"] != "BENIGN"]
+df3 = df3[df3["Label"] != "BENIGN"]
+df4 = df4[df4["Label"] != "BENIGN"]
+df5 = df5[df5["Label"] != "BENIGN"]
+df6 = df6[df6["Label"] != "BENIGN"]
+df7 = df7[df7["Label"] != "BENIGN"]
+
+df = pd.concat([df0,df1,df2,df3,df4,df5,df6,df7], axis=0, ignore_index=True)
+
+def normalize(df):
+    numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+    df_norm = df.copy()
+    for col in numeric_columns:
+        if df[col].skew() > 0 or col == "Source Port":
+            df_norm[col] = np.log1p(df[col].clip(lower=-0.99))  # Ensures log1p always gets valid input
+        elif df[col].skew() < 0:
+            df_norm[col] = df[col] ** 2  # Can cause overflow
+    return df_norm
+
+df_norm = normalize(df)
+df_norm = df_norm[df_norm['Label'] != "Heartbleed"]
+df_norm = df_norm[df_norm['Label'] != "Infiltration"]
+df_norm['Label'] = df_norm['Label'].apply(lambda x: 'DoS' if x.startswith('DoS') else x)
+df_norm['Label'] = df_norm['Label'].apply(lambda x: 'WebAttack' if x.startswith('Web Attack') else x)
+
+X = df_norm.drop(["Flow ID", "Src IP", "Timestamp", "Dst IP", "Label"], axis=1)
+y = df_norm["Label"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+y_train.value_counts()
+
+import pandas as pd
+from imblearn.over_sampling import SMOTE, RandomOverSampler
+
+# Grupowanie klas wg ilości
+class_counts = y_train.value_counts()
+
+# Progi
+threshold_medium = 20000
+threshold_minor = 100
+
+# Podział klas
+medium_classes = class_counts[(class_counts >= threshold_medium)].index.tolist()
+minor_classes = class_counts[(class_counts < threshold_medium) & (class_counts >= threshold_minor) ].index.tolist()
+
+print(f"Medium classes: {medium_classes}")
+print(f"Minor classes: {minor_classes}")
+
+df_train = pd.DataFrame(X_train, columns=X.columns)
+
+df_train["Label"] = y_train.reset_index(drop=True)
+
+# SMOTE dla średnich
+df_medium = df_train[df_train['Label'].isin(medium_classes)]
+X_medium = df_medium.drop('Label', axis=1)
+y_medium = df_medium['Label']
+# Oversampling małych klas
+df_minor = df_train[df_train['Label'].isin(minor_classes)]
+X_minor = df_minor.drop('Label', axis=1)
+y_minor = df_minor['Label']
+
+sampling_strategy = {cls: 20000 for cls in minor_classes}
+smote = SMOTE(sampling_strategy=sampling_strategy, random_state=42)
+X_minor_res, y_minor_res = smote.fit_resample(X_minor, y_minor)
+
+# Klasy z obserwacjami poniżej 100 uznajemy za niereprezentatywne
+
+# Finalne scalanie
+X_train = pd.concat([
+    pd.DataFrame(X_medium),
+    pd.DataFrame(X_minor_res)])
+y_train = pd.concat([
+    pd.Series(y_medium),
+    pd.Series(y_minor_res)])
+
+print("Train class distribution:\n", y_train.value_counts())
+print("Test class distribution:\n", y_test.value_counts())
+
+Medium classes: ['BENIGN', 'DoS', 'PortScan', 'DDoS']
+Minor classes: ['FTP-Patator', 'SSH-Patator', 'WebAttack', 'Bot']
+Train class distribution:
+ Label
+BENIGN         370942
+DoS            176862
+PortScan       111251
+DDoS            89619
+SSH-Patator     20000
+Bot             20000
+FTP-Patator     20000
+WebAttack       20000
+Name: count, dtype: int64
+Test class distribution:
+ Label
+BENIGN         158976
+DoS             75799
+PortScan        47679
+DDoS            38408
+FTP-Patator      2381
+SSH-Patator      1769
+WebAttack         654
+Bot               590
+Name: count, dtype: int64
+
+pca = PCA()
+
+pca.fit(X_train)
+
+explained_variance = pca.explained_variance_ratio_
+cumulative_variance = np.cumsum(explained_variance)
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, len(cumulative_variance) + 1), cumulative_variance, marker='o', linestyle='-')
+
+# Find the elbow point (where variance gain is <1%)
+elbow_point = np.argmax(np.diff(cumulative_variance) < 0.001) + 1
+
+plt.axvline(x=elbow_point, color='r', linestyle="--")  # Mark elbow
+plt.xlabel("Number of Principal Components")
+plt.ylabel("Cumulative Explained Variance")
+plt.title("PCA Elbow Method")
+plt.grid()
+plt.show()
+
+print(f"Optimal number of components: {elbow_point}")
+
+pca = PCA(n_components=elbow_point)
+X_train_pca = pca.fit_transform(X_train)
+X_test_pca = pca.transform(X_test)
+
+/usr/local/lib/python3.10/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but PCA was fitted with feature names
+  warnings.warn(
+
+import pickle as pkl
+
+def save_model(model, file):
+  with open(file, "wb") as f:
+    pkl.dump(model,f)
+
+save_model(scaler, "scaler.pkl")
+save_model(pca, "pca.pkl")
+
+LinearSVC
+
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import GridSearchCV
+
+
+linear_svc = LinearSVC(dual=False, C=100, max_iter=1000, penalty='l2')
+linear_svc.fit(X_train_pca, y_train)
+
+y_pred = linear_svc.predict(X_test_pca)
+print(classification_report(y_test, y_pred, target_names=np.unique(y_test)))
+save_model(linear_svc, "linear_svc.pkl")
+
+              precision    recall  f1-score   support
+
+      BENIGN       0.98      0.97      0.97    158976
+         Bot       0.34      0.39      0.36       590
+        DDoS       0.99      1.00      1.00     38408
+         DoS       0.95      0.97      0.96     75799
+ FTP-Patator       1.00      1.00      1.00      2381
+    PortScan       1.00      1.00      1.00     47679
+ SSH-Patator       0.90      0.99      0.94      1769
+   WebAttack       0.40      0.85      0.54       654
+
+    accuracy                           0.97    326256
+   macro avg       0.82      0.89      0.85    326256
+weighted avg       0.98      0.97      0.97    326256
+
+SVM
+
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+
+
+svc = SVC(C=10, kernel='rbf', gamma=0.1)
+svc.fit(X_train_pca, y_train)
+
+y_pred = svc.predict(X_test_pca)
+print(classification_report(y_test, y_pred, target_names=np.unique(y_test)))
+save_model(model=svc, file="svc.pkl")
+
+              precision    recall  f1-score   support
+
+      BENIGN       1.00      1.00      1.00    158976
+         Bot       0.96      0.99      0.97       590
+        DDoS       1.00      1.00      1.00     38408
+         DoS       1.00      1.00      1.00     75799
+ FTP-Patator       1.00      1.00      1.00      2381
+    PortScan       1.00      1.00      1.00     47679
+ SSH-Patator       0.99      1.00      0.99      1769
+   WebAttack       0.96      0.99      0.98       654
+
+    accuracy                           1.00    326256
+   macro avg       0.99      1.00      0.99    326256
+weighted avg       1.00      1.00      1.00    326256
+
+DecisionTreeClassifier
+
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.tree import DecisionTreeClassifier
+from scipy.stats import randint
+
+tree = DecisionTreeClassifier(criterion="log_loss", splitter="best", max_depth=14, min_samples_leaf=8, min_samples_split=16, max_features=None)
+
+tree.fit(X_train_pca, y_train)
+
+from sklearn.metrics import classification_report
+y_pred = tree.predict(X_test_pca)
+print(classification_report(y_test, y_pred, target_names=np.unique(y_test)))
+save_model(tree, "dec_tree.pkl")
+
+              precision    recall  f1-score   support
+
+      BENIGN       1.00      0.99      1.00    158976
+         Bot       0.51      0.96      0.67       590
+        DDoS       1.00      1.00      1.00     38408
+         DoS       1.00      1.00      1.00     75799
+ FTP-Patator       1.00      1.00      1.00      2381
+    PortScan       1.00      1.00      1.00     47679
+ SSH-Patator       0.98      0.99      0.99      1769
+   WebAttack       0.95      0.98      0.96       654
+
+    accuracy                           1.00    326256
+   macro avg       0.93      0.99      0.95    326256
+weighted avg       1.00      1.00      1.00    326256
+
+KNN
+
+from sklearn.neighbors import KNeighborsClassifier
+from scipy.stats import randint
+from sklearn.preprocessing import LabelEncoder
+
+label_encoder = LabelEncoder()
+
+y_train_encoded = label_encoder.fit_transform(y_train)
+save_model(label_encoder, "label_encoder.pkl")
+
+knn = KNeighborsClassifier(metric='euclidean', n_neighbors=3, p=4, weights="distance")
+knn.fit(X_train_pca, y_train_encoded)
+
+y_pred = knn.predict(X_test_pca)
+y_pred_labels = label_encoder.inverse_transform(y_pred)
+print(classification_report(y_test, y_pred_labels, target_names=np.unique(y_test)))
+save_model(knn, "knn.pkl")
+
+              precision    recall  f1-score   support
+
+      BENIGN       1.00      1.00      1.00    158976
+         Bot       0.95      0.99      0.97       590
+        DDoS       1.00      1.00      1.00     38408
+         DoS       1.00      1.00      1.00     75799
+ FTP-Patator       1.00      1.00      1.00      2381
+    PortScan       1.00      1.00      1.00     47679
+ SSH-Patator       1.00      1.00      1.00      1769
+   WebAttack       0.98      0.99      0.98       654
+
+    accuracy                           1.00    326256
+   macro avg       0.99      1.00      0.99    326256
+weighted avg       1.00      1.00      1.00    326256
+
+

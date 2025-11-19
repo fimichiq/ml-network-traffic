@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+*.swp
+*.swo
+*~
+
+# Build artifacts
+java/build/
+java/target/
+java/.gradle/
+*.class
+*.jar
+*.war
+*.ear
+
+# Gradle
+.gradle
+java/.gradle
+
+# Maven
+java/target/
+
+# Documentation
+*.md
+!app/README.md
+
+# Logs
+*.log
+app/build/scripts/cfm.bat
+app/build/scripts/CICFlowMeter.bat
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.temp

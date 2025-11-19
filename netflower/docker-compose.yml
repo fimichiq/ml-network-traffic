@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    container_name: netflower-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - shared-files:/app/shared-files
+    environment:
+      - FLASK_APP=run.py
+      - PYTHONUNBUFFERED=1
+      - UPLOAD_FOLDER=/app/shared-files/PCAPs
+      - CONVERT_FOLDER=/app/shared-files/Netflows
+      - CICFLOWMETER_URL=http://cicflowmeter:6000
+    networks:
+      - netflower-network
+    depends_on:
+      - cicflowmeter
+
+  cicflowmeter:
+    build:
+      context: cicflowmeter
+      dockerfile: Dockerfile
+    container_name: netflower-cicflowmeter
+    environment:
+      - UPLOAD_FOLDER=/files/PCAPs
+      - CONVERT_FOLDER=/files/Netflows
+    ports:
+      - "6000:6000"
+    volumes:
+      - shared-files:/files
+    networks:
+      - netflower-network
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: netflower-frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - netflower-network
+    depends_on:
+      - backend
+
+networks:
+  netflower-network:
+    driver: bridge
+
+volumes:
+  shared-files:
