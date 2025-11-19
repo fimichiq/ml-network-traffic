@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+html,
+body {
+  @apply bg-white dark:bg-gray-950;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+  }
+}
+
+.aside {
+  @apply shadow-lg;
+}
+
+.nav ul {
+  @apply space-y-2;
+}
+
+.nav ul li a {
+  @apply transition-colors duration-200 ease-in-out;
+}
+
+/* Enhancements for the collapsed state */
+.aside.collapsed .nav {
+  @apply opacity-0 invisible;
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.aside:not(.collapsed) .nav {
+  @apply opacity-100 visible;
+}
+
+.button {
+  @apply transition-transform duration-200 ease-in-out;
+}
+
+.button:hover {
+  @apply transform scale-105;
+}
+
+@media (max-width: 768px) {
+  .aside {
+    @apply w-16;
+  }
+
+  .aside:not(.collapsed) {
+    @apply w-64;
+  }
+}
+
+
+
+@layer base {
+  h1 {
+    @apply text-3xl font-bold; /* Customize as needed */
+  }
+  h2 {
+    @apply text-2xl font-bold;
+  }
+  h3 {
+    @apply text-xl font-bold;
+  }
+  /* Add more headings as needed */
+}
