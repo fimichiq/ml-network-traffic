@@ -30,11 +30,6 @@ export default function Sidebar() {
             </Link>
           </li>
           <li className="p-2 hover:bg-gray-700 rounded whitespace-nowrap">
-            <Link to="/train-models" className="block w-full h-full p-2">
-              Train Model
-            </Link>
-          </li>
-          <li className="p-2 hover:bg-gray-700 rounded whitespace-nowrap">
             <Link to="/classify-traffic" className="block w-full h-full p-2">
               Classify Traffic
             </Link>

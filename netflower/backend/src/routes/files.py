@@ -1,7 +1,8 @@
 import os
+import shutil
 
 from flask import Blueprint, request, jsonify
-from ..config import CONVERT_FOLDER, MODEL_FOLDER
+from config import CONVERT_FOLDER, MODEL_FOLDER
 
 files_bp = Blueprint('files', __name__)
 
@@ -17,7 +18,10 @@ def get_files():
 def delete_file(filename):
     file_path = os.path.join(CONVERT_FOLDER, filename)
     if os.path.exists(file_path):
-        os.remove(file_path)
+        if os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+        else:
+            os.remove(file_path)
         return jsonify({"message": "File deleted"}), 200
     return jsonify({"error": "File not found"}), 404
 

@@ -2,13 +2,21 @@ import { useEffect, useState } from "react";
 
 interface FileProps {
   onRefresh: boolean;
+  onFileSelect?: (file: string | null) => void;
+  showDelete?: boolean;
 }
 
-function FileList({ onRefresh }: FileProps) {
+function FileList({ onRefresh, onFileSelect, showDelete = true }: FileProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  const handleFileSelect = (file: string) => {
+    const newSelection = selectedFile === file ? null : file;
+    setSelectedFile(newSelection);
+    onFileSelect?.(newSelection);
+  };
 
   useEffect(() => {
     fetchFiles().then()
@@ -69,9 +77,11 @@ function FileList({ onRefresh }: FileProps) {
             <th className="p-1.5 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
               File Name
             </th>
-            <th className="p-1.5 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
-              Action
-            </th>
+            {showDelete && (
+              <th className="p-1.5 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
+                Action
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -83,22 +93,24 @@ function FileList({ onRefresh }: FileProps) {
                   ? "bg-blue-300 dark:bg-blue-800"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              onClick={() => setSelectedFile(file)}
+              onClick={() => handleFileSelect(file)}
             >
               <td className="p-2 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
                 {file}
               </td>
-              <td className="p-2 border border-gray-300 dark:border-gray-700 text-center">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteFile(file).then();
-                  }}
-                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                >
-                  Delete
-                </button>
-              </td>
+              {showDelete && (
+                <td className="p-2 border border-gray-300 dark:border-gray-700 text-center">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFile(file).then();
+                    }}
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

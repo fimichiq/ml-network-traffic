@@ -9,13 +9,15 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - shared-files:/app/shared-files
+      - ./shared-files:/app/shared-files:z
     environment:
       - FLASK_APP=run.py
       - PYTHONUNBUFFERED=1
       - UPLOAD_FOLDER=/app/shared-files/PCAPs
       - CONVERT_FOLDER=/app/shared-files/Netflows
       - CICFLOWMETER_URL=http://cicflowmeter:6000
+      - MODEL_FOLDER=/app/ml_files/models
+      - UTILS_FOLDER=/app/ml_files/utils
     networks:
       - netflower-network
     depends_on:
@@ -32,7 +34,7 @@ services:
     ports:
       - "6000:6000"
     volumes:
-      - shared-files:/files
+      - ./shared-files:/files:z
     networks:
       - netflower-network
 
@@ -51,6 +53,3 @@ services:
 networks:
   netflower-network:
     driver: bridge
-
-volumes:
-  shared-files:

@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
 
+interface ModelListProps {
+  onModelSelect?: (model: string | null) => void;
+}
 
-function ModelList() {
+function ModelList({ onModelSelect }: ModelListProps) {
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+
+  const handleModelSelect = (model: string) => {
+    const newSelection = selectedModel === model ? null : model;
+    setSelectedModel(newSelection);
+    onModelSelect?.(newSelection);
+  };
 
   // Fetch file list from backend
   const fetchModels = async () => {
@@ -57,7 +66,7 @@ function ModelList() {
                   ? "bg-blue-300 dark:bg-blue-800"
                   : "hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
-              onClick={() => setSelectedModel(model)}
+              onClick={() => handleModelSelect(model)}
             >
               <td className="p-2 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
                 {model}
